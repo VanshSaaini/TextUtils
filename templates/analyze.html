@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TextUtils — Result</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts — same pairing as index -->
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-base:       #111213;
+            --bg-card:       #1a1b1e;
+            --bg-glass:      rgba(255,255,255,0.035);
+            --border:        rgba(255,255,255,0.08);
+            --border-hover:  rgba(255,255,255,0.18);
+            --text-primary:  #f0f0f0;
+            --text-muted:    #7a7d85;
+            --accent:        #c8f542;
+            --accent-dim:    rgba(200,245,66,0.12);
+            --accent-glow:   rgba(200,245,66,0.35);
+            --radius-card:   20px;
+            --radius-sm:     10px;
+            --font-head:     'Syne', sans-serif;
+            --font-body:     'DM Sans', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-weight: 400;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ─── NOISE TEXTURE ─── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+            background-size: 200px 200px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── AMBIENT BLOBS ─── */
+        .blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.07;
+            pointer-events: none;
+            z-index: 0;
+            animation: drift 18s ease-in-out infinite alternate;
+        }
+        .blob-1 { width: 500px; height: 500px; background: var(--accent); top: -150px; right: -100px; animation-duration: 20s; }
+        .blob-2 { width: 350px; height: 350px; background: #4af0d0; bottom: 0; left: -80px; animation-duration: 15s; animation-delay: -7s; }
+
+        @keyframes drift {
+            from { transform: translate(0, 0) scale(1); }
+            to   { transform: translate(30px, 40px) scale(1.08); }
+        }
+
+        /* ─── NAVBAR ─── */
+        .navbar {
+            background: rgba(17,18,19,0.75) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar-brand {
+            font-family: var(--font-head);
+            font-weight: 800;
+            font-size: 1.35rem;
+            color: var(--text-primary) !important;
+            letter-spacing: -0.5px;
+        }
+        .navbar-brand span { color: var(--accent); }
+        .nav-link {
+            font-family: var(--font-body);
+            font-weight: 500;
+            font-size: 0.88rem;
+            color: var(--text-muted) !important;
+            letter-spacing: 0.3px;
+            transition: color 0.2s;
+            padding: 6px 14px !important;
+        }
+        .nav-link:hover, .nav-link.active { color: var(--text-primary) !important; }
+        .search-input {
+            background: var(--bg-glass) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-primary) !important;
+            border-radius: var(--radius-sm) !important;
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            transition: border 0.2s, box-shadow 0.2s;
+            width: 180px;
+        }
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--accent-glow) !important;
+            border-color: var(--accent) !important;
+        }
+        .btn-search {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.83rem;
+            border-radius: var(--radius-sm);
+            padding: 7px 16px;
+            transition: all 0.2s;
+        }
+        .btn-search:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+        /* ─── ALERT BANNER ─── */
+        .success-banner {
+            background: var(--accent-dim);
+            border: 1px solid rgba(200,245,66,0.2);
+            border-radius: var(--radius-sm);
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.87rem;
+            color: var(--accent);
+            animation: slideDown 0.5s ease;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .banner-close {
+            background: none;
+            border: none;
+            color: var(--accent);
+            opacity: 0.6;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            transition: opacity 0.2s;
+        }
+        .banner-close:hover { opacity: 1; }
+
+        /* ─── MAIN CARD ─── */
+        .main-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-card);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.05) inset;
+            padding: 40px;
+            position: relative;
+            z-index: 1;
+            transition: border-color 0.3s;
+            animation: fadeUp 0.45s ease both;
+        }
+        .main-card:hover { border-color: var(--border-hover); }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── HERO LABEL ─── */
+        .hero-label {
+            display: inline-block;
+            font-family: var(--font-head);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(200,245,66,0.25);
+            border-radius: 100px;
+            padding: 5px 14px;
+            margin-bottom: 18px;
+        }
+
+        .card-title {
+            font-family: var(--font-head);
+            font-size: 1.85rem;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            color: var(--text-primary);
+            line-height: 1.15;
+        }
+        .card-subtitle {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* ─── SECTION DIVIDER ─── */
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 24px 0;
+        }
+
+        /* ─── OPERATION TAG ─── */
+        .operation-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .op-label {
+            font-family: var(--font-head);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .op-tag {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 4px 14px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--accent);
+        }
+
+        /* ─── RESULT BOX ─── */
+        .result-box {
+            background: #0e0f10;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 20px 22px;
+            max-height: 340px;
+            overflow-y: auto;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+        .result-box:hover { border-color: var(--border-hover); }
+
+        .result-box::-webkit-scrollbar { width: 5px; }
+        .result-box::-webkit-scrollbar-track { background: transparent; }
+        .result-box::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        .result-box::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        pre {
+            font-family: var(--font-body);
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+
+        /* ─── COPY BUTTON ─── */
+        .copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font-body);
+        }
+        .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .copy-btn.copied { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+        /* ─── STATS ROW ─── */
+        .stat-pill {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 6px 16px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stat-pill strong { color: var(--text-primary); font-weight: 600; }
+
+        /* ─── BACK BUTTON ─── */
+        .btn-back {
+            background: var(--accent);
+            color: #111;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 13px 32px;
+            font-family: var(--font-head);
+            font-weight: 700;
+            font-size: 0.93rem;
+            letter-spacing: 0.3px;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px var(--accent-glow);
+            background: #d4ff55;
+            color: #111;
+        }
+        .btn-back:active { transform: translateY(0); }
+
+        /* ─── FOOTER ─── */
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            padding: 28px 0 32px;
+            position: relative;
+            z-index: 1;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 576px) {
+            .main-card { padding: 24px 18px; }
+            .card-title { font-size: 1.45rem; }
+            .navbar-brand { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Ambient blobs -->
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<!-- ─── NAVBAR ─── -->
+<nav class="navbar navbar-expand-lg">
+    <div class="container">
+        <a class="navbar-brand" href="/">Text<span>Utils</span></a>
+
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" style="color:var(--text-muted);">
+            <span class="navbar-toggler-icon" style="filter:invert(1) brightness(0.7);"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navMain">
+            <ul class="navbar-nav me-auto mt-2 mt-lg-0">
+                <li class="nav-item"><a class="nav-link active" href="/">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">About</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Contact</a></li>
+            </ul>
+            <div class="d-flex align-items-center gap-2 mt-2 mt-lg-0">
+                <input class="search-input" type="search" placeholder="Search…">
+                <button class="btn-search">Search</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- ─── BANNER ─── -->
+<div class="container mt-3" id="bannerWrap">
+    <div class="success-banner">
+        <span>🎉 &nbsp;Analysis complete — your transformed text is ready below.</span>
+        <button class="banner-close" id="bannerClose">✕</button>
+    </div>
+</div>
+
+<!-- ─── MAIN ─── -->
+<div class="container mt-4 mb-2 d-flex justify-content-center">
+    <div class="main-card w-100" style="max-width:860px;">
+
+        <!-- Header -->
+        <div class="mb-4">
+            <div class="hero-label">Result</div>
+            <h1 class="card-title">Your analyzed<br><span style="color:var(--accent)">text is ready.</span></h1>
+            <p class="card-subtitle">Review the output below and copy or go back to transform again.</p>
+        </div>
+
+        <!-- Operation tag — Django fills {{ purpose }} -->
+        <div class="operation-row mb-3">
+            <span class="op-label">Operation</span>
+            <span class="op-tag">{{ purpose }}</span>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Result box — Django fills {{ analyzed_text }} -->
+        <div class="result-box" id="resultBox">
+            <button class="copy-btn" id="copyBtn">Copy</button>
+            <pre id="resultText">{{ analyzed_text }}</pre>
+        </div>
+
+        <!-- Stats computed from the rendered result text -->
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <span class="stat-pill"><strong id="wordCount">—</strong> words</span>
+            <span class="stat-pill"><strong id="charCount">—</strong> characters</span>
+            <span class="stat-pill"><strong id="lineCount">—</strong> lines</span>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="text-center">
+            <a href="/" class="btn-back">← Back to Home</a>
+        </div>
+
+    </div>
+</div>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+    Built with <a href="/">TextUtils</a> · Grey Edition · 2025
+</footer>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // ─────────────────────────────────────────────────────────────────────────
+    // ALL JS IS PURELY COSMETIC — this page has NO form submission at all.
+    // Django template variables {{ purpose }} and {{ analyzed_text }} are
+    // rendered server-side before JS ever runs. JS only:
+    //   1. Dismisses the success banner (DOM removal only)
+    //   2. Counts stats from the already-rendered <pre> text (read-only)
+    //   3. Copies the result text to clipboard (Clipboard API, no side effects)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // ── 1. BANNER DISMISS ─────────────────────────────────────────────────
+        var bannerClose = document.getElementById('bannerClose');
+        var bannerWrap  = document.getElementById('bannerWrap');
+        if (bannerClose && bannerWrap) {
+            bannerClose.addEventListener('click', function () {
+                bannerWrap.remove();
+            });
+        }
+
+        // ── 2. RESULT STATS ───────────────────────────────────────────────────
+        // Reads the server-rendered text from <pre> — never modifies it.
+        var resultPre = document.getElementById('resultText');
+        if (resultPre) {
+            var t     = resultPre.textContent;
+            var words = t.trim() === '' ? 0 : t.trim().split(/\s+/).length;
+            var chars = t.length;
+            var lines = t.trim() === '' ? 0 : t.split('\n').length;
+
+            document.getElementById('wordCount').textContent = words;
+            document.getElementById('charCount').textContent = chars;
+            document.getElementById('lineCount').textContent = lines;
+        }
+
+        // ── 3. COPY TO CLIPBOARD ──────────────────────────────────────────────
+        // Uses the Clipboard API (with execCommand fallback).
+        // No form or Django interaction whatsoever.
+        var copyBtn = document.getElementById('copyBtn');
+        if (copyBtn && resultPre) {
+            copyBtn.addEventListener('click', function () {
+                var text = resultPre.textContent.trim();
+
+                function markCopied() {
+                    copyBtn.textContent = 'Copied ✓';
+                    copyBtn.classList.add('copied');
+                    setTimeout(function () {
+                        copyBtn.textContent = 'Copy';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                }
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    // Modern async Clipboard API
+                    navigator.clipboard.writeText(text).then(markCopied).catch(function () {
+                        fallbackCopy(text, markCopied);
+                    });
+                } else {
+                    // Fallback for HTTP or older browsers
+                    fallbackCopy(text, markCopied);
+                }
+            });
+        }
+
+        function fallbackCopy(text, callback) {
+            var sel   = window.getSelection();
+            var range = document.createRange();
+            range.selectNodeContents(document.getElementById('resultText'));
+            sel.removeAllRanges();
+            sel.addRange(range);
+            try { document.execCommand('copy'); } catch(e) {}
+            sel.removeAllRanges();
+            callback();
+        }
+
+    }); // end DOMContentLoaded
+</script>
+</body>
+</html>

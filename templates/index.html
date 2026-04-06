@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TextUtils — Text Analyzer</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-base:       #111213;
+            --bg-card:       #1a1b1e;
+            --bg-glass:      rgba(255,255,255,0.035);
+            --border:        rgba(255,255,255,0.08);
+            --border-hover:  rgba(255,255,255,0.18);
+            --text-primary:  #f0f0f0;
+            --text-muted:    #7a7d85;
+            --accent:        #c8f542;        /* electric lime */
+            --accent-dim:    rgba(200,245,66,0.12);
+            --accent-glow:   rgba(200,245,66,0.35);
+            --danger:        #ff5e5e;
+            --radius-card:   20px;
+            --radius-sm:     10px;
+            --font-head:     'Syne', sans-serif;
+            --font-body:     'DM Sans', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-weight: 400;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ─── NOISE TEXTURE OVERLAY ─── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+            background-size: 200px 200px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── AMBIENT BLOBS ─── */
+        .blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.07;
+            pointer-events: none;
+            z-index: 0;
+            animation: drift 18s ease-in-out infinite alternate;
+        }
+        .blob-1 { width: 500px; height: 500px; background: var(--accent); top: -150px; right: -100px; animation-duration: 20s; }
+        .blob-2 { width: 350px; height: 350px; background: #4af0d0; bottom: 0; left: -80px; animation-duration: 15s; animation-delay: -7s; }
+
+        @keyframes drift {
+            from { transform: translate(0, 0) scale(1); }
+            to   { transform: translate(30px, 40px) scale(1.08); }
+        }
+
+        /* ─── NAVBAR ─── */
+        .navbar {
+            background: rgba(17,18,19,0.75) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-brand {
+            font-family: var(--font-head);
+            font-weight: 800;
+            font-size: 1.35rem;
+            color: var(--text-primary) !important;
+            letter-spacing: -0.5px;
+        }
+
+        .navbar-brand span {
+            color: var(--accent);
+        }
+
+        .nav-link {
+            font-family: var(--font-body);
+            font-weight: 500;
+            font-size: 0.88rem;
+            color: var(--text-muted) !important;
+            letter-spacing: 0.3px;
+            transition: color 0.2s;
+            padding: 6px 14px !important;
+        }
+        .nav-link:hover, .nav-link.active { color: var(--text-primary) !important; }
+
+        .search-input {
+            background: var(--bg-glass) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-primary) !important;
+            border-radius: var(--radius-sm) !important;
+            font-size: 0.85rem;
+            padding: 7px 14px;
+            transition: border 0.2s, box-shadow 0.2s;
+            width: 180px;
+        }
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--accent-glow) !important;
+            border-color: var(--accent) !important;
+        }
+
+        .btn-search {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.83rem;
+            border-radius: var(--radius-sm);
+            padding: 7px 16px;
+            transition: all 0.2s;
+        }
+        .btn-search:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+        /* ─── ALERT BANNER ─── */
+        .welcome-banner {
+            background: var(--accent-dim);
+            border: 1px solid rgba(200,245,66,0.2);
+            border-radius: var(--radius-sm);
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.87rem;
+            color: var(--accent);
+            animation: slideDown 0.5s ease;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .banner-close {
+            background: none;
+            border: none;
+            color: var(--accent);
+            opacity: 0.6;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            transition: opacity 0.2s;
+        }
+        .banner-close:hover { opacity: 1; }
+
+        /* ─── HERO LABEL ─── */
+        .hero-label {
+            display: inline-block;
+            font-family: var(--font-head);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(200,245,66,0.25);
+            border-radius: 100px;
+            padding: 5px 14px;
+            margin-bottom: 18px;
+        }
+
+        /* ─── CARD ─── */
+        .main-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-card);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.05) inset;
+            padding: 40px;
+            position: relative;
+            z-index: 1;
+            transition: border-color 0.3s;
+        }
+        .main-card:hover { border-color: var(--border-hover); }
+
+        .card-title {
+            font-family: var(--font-head);
+            font-size: 1.85rem;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            color: var(--text-primary);
+            line-height: 1.15;
+        }
+        .card-subtitle {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* ─── TEXTAREA ─── */
+        .text-input {
+            background: #0e0f10 !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-primary) !important;
+            border-radius: var(--radius-sm) !important;
+            font-family: var(--font-body);
+            font-size: 0.92rem;
+            line-height: 1.65;
+            resize: vertical;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            padding: 14px 16px;
+        }
+        .text-input::placeholder { color: #3a3d44; }
+        .text-input:focus {
+            outline: none !important;
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px var(--accent-glow) !important;
+        }
+
+        /* ─── DIVIDER ─── */
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 24px 0;
+        }
+
+        /* ─── OPTIONS LABEL ─── */
+        .options-label {
+            font-family: var(--font-head);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* ─── TOGGLE SWITCHES ─── */
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 11px 16px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            margin-bottom: 8px;
+            user-select: none;
+        }
+        .toggle-item:hover { background: rgba(255,255,255,0.06); border-color: var(--border-hover); }
+        .toggle-item.active-item {
+            background: var(--accent-dim);
+            border-color: rgba(200,245,66,0.3);
+        }
+
+        .toggle-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+        .toggle-item.active-item .toggle-icon {
+            background: var(--accent-dim);
+        }
+
+        .toggle-text {
+            flex: 1;
+        }
+        .toggle-name {
+            font-size: 0.87rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+        .toggle-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* Custom checkbox hidden, whole row is clickable */
+        .toggle-item input[type="checkbox"] { display: none; }
+
+        /* Pill indicator */
+        .toggle-pill {
+            width: 36px;
+            height: 20px;
+            border-radius: 100px;
+            background: rgba(255,255,255,0.1);
+            position: relative;
+            transition: background 0.25s;
+            flex-shrink: 0;
+        }
+        .toggle-pill::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #555;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.25s, background 0.25s;
+        }
+        .toggle-item.active-item .toggle-pill {
+            background: rgba(200,245,66,0.3);
+        }
+        .toggle-item.active-item .toggle-pill::after {
+            transform: translateX(16px);
+            background: var(--accent);
+        }
+
+        /* ─── SUBMIT BUTTON ─── */
+        .btn-analyze {
+            background: var(--accent);
+            color: #111;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 14px 32px;
+            font-family: var(--font-head);
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+            width: 100%;
+        }
+        .btn-analyze:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px var(--accent-glow);
+            background: #d4ff55;
+        }
+        .btn-analyze:active { transform: translateY(0); }
+
+        /* ─── STATS ROW ─── */
+        .stat-pill {
+            background: var(--bg-glass);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 6px 16px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stat-pill strong { color: var(--text-primary); font-weight: 600; }
+
+        /* ─── FOOTER ─── */
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            padding: 28px 0 32px;
+            position: relative;
+            z-index: 1;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 576px) {
+            .main-card { padding: 24px 18px; }
+            .card-title { font-size: 1.45rem; }
+            .navbar-brand { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Ambient blobs -->
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<!-- ─── NAVBAR ─── -->
+<nav class="navbar navbar-expand-lg">
+    <div class="container">
+        <a class="navbar-brand" href="#">Text<span>Utils</span></a>
+
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" style="color:var(--text-muted);">
+            <span class="navbar-toggler-icon" style="filter:invert(1) brightness(0.7);"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navMain">
+            <ul class="navbar-nav me-auto mt-2 mt-lg-0">
+                <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">About</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Contact</a></li>
+            </ul>
+            <div class="d-flex align-items-center gap-2 mt-2 mt-lg-0">
+                <input class="search-input" type="search" placeholder="Search…">
+                <button class="btn-search">Search</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- ─── BANNER ─── -->
+<div class="container mt-3" id="bannerWrap">
+    <div class="welcome-banner">
+        <span>🚀 &nbsp;Welcome to TextUtils — paste your text and transform it instantly.</span>
+        <button class="banner-close" onclick="document.getElementById('bannerWrap').remove()">✕</button>
+    </div>
+</div>
+
+{% if error %}{{ error|safe }}{% endif %}
+
+<!-- ─── MAIN ─── -->
+<div class="container mt-4 mb-2 d-flex justify-content-center">
+    <div class="main-card w-100" style="max-width:820px;">
+
+        <div class="mb-4">
+            <div class="hero-label">Text Analyzer</div>
+            <h1 class="card-title">Transform your text<br><span style="color:var(--accent)">in seconds.</span></h1>
+            <p class="card-subtitle">Paste anything. Pick your transformations. Done.</p>
+        </div>
+
+        <form action="/analyze" method="POST">
+            {% csrf_token %}
+
+            <!-- Textarea -->
+            <label class="options-label mb-1 d-block">Your text</label>
+            <textarea
+                class="form-control text-input mb-2"
+                name="text"
+                rows="8"
+                id="mainText"
+                placeholder="Start typing or paste your text here…"
+                oninput="updateStats()"
+            ></textarea>
+
+            <!-- Live stats -->
+            <div class="d-flex flex-wrap gap-2 mb-4" id="statsRow">
+                <span class="stat-pill"><strong id="wordCount">0</strong> words</span>
+                <span class="stat-pill"><strong id="charCount2">0</strong> characters</span>
+                <span class="stat-pill"><strong id="lineCount">0</strong> lines</span>
+                <span class="stat-pill">~<strong id="readTime">0</strong> min read</span>
+            </div>
+
+            <hr class="section-divider">
+
+            <!-- Transformations -->
+            <p class="options-label">Transformations</p>
+
+            <div class="row g-2">
+                <!-- Col 1 -->
+                <div class="col-12 col-md-6">
+                    <label class="toggle-item" onclick="toggleItem(this)">
+                        <input type="checkbox" name="removepunc">
+                        <div class="toggle-icon">⚡</div>
+                        <div class="toggle-text">
+                            <div class="toggle-name">Remove Punctuation</div>
+                            <div class="toggle-desc">Strip ,.!?;:" and more</div>
+                        </div>
+                        <div class="toggle-pill"></div>
+                    </label>
+
+                    <label class="toggle-item" onclick="toggleItem(this)">
+                        <input type="checkbox" name="fullcaps">
+                        <div class="toggle-icon">🔠</div>
+                        <div class="toggle-text">
+                            <div class="toggle-name">UPPERCASE</div>
+                            <div class="toggle-desc">Convert all to capitals</div>
+                        </div>
+                        <div class="toggle-pill"></div>
+                    </label>
+
+                    <label class="toggle-item" onclick="toggleItem(this)">
+                        <input type="checkbox" name="newlineremover">
+                        <div class="toggle-icon">↵</div>
+                        <div class="toggle-text">
+                            <div class="toggle-name">Remove New Lines</div>
+                            <div class="toggle-desc">Merge all into one block</div>
+                        </div>
+                        <div class="toggle-pill"></div>
+                    </label>
+                </div>
+
+                <!-- Col 2 -->
+                <div class="col-12 col-md-6">
+                    <label class="toggle-item" onclick="toggleItem(this)">
+                        <input type="checkbox" name="extraSpaceRemover">
+                        <div class="toggle-icon">␣</div>
+                        <div class="toggle-text">
+                            <div class="toggle-name">Remove Extra Spaces</div>
+                            <div class="toggle-desc">Collapse whitespace</div>
+                        </div>
+                        <div class="toggle-pill"></div>
+                    </label>
+
+                    <label class="toggle-item" onclick="toggleItem(this)">
+                        <input type="checkbox" name="charCount">
+                        <div class="toggle-icon">#</div>
+                        <div class="toggle-text">
+                            <div class="toggle-name">Character Count</div>
+                            <div class="toggle-desc">Show detailed char stats</div>
+                        </div>
+                        <div class="toggle-pill"></div>
+                    </label>
+                </div>
+            </div>
+
+            <hr class="section-divider">
+
+            <button type="submit" class="btn-analyze">Analyze Text →</button>
+        </form>
+    </div>
+</div>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+    Built with <a href="#">TextUtils</a> · Grey Edition · 2025
+</footer>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    /* Toggle row active state */
+    function toggleItem(label) {
+        const cb = label.querySelector('input[type="checkbox"]');
+        setTimeout(() => {
+            if (cb.checked) label.classList.add('active-item');
+            else label.classList.remove('active-item');
+        }, 0);
+    }
+
+    /* Live text stats */
+    function updateStats() {
+        const t = document.getElementById('mainText').value;
+        const words = t.trim() === '' ? 0 : t.trim().split(/\s+/).length;
+        const chars = t.length;
+        const lines = t === '' ? 0 : t.split('\n').length;
+        const rt    = Math.max(1, Math.ceil(words / 200));
+
+        document.getElementById('wordCount').textContent  = words;
+        document.getElementById('charCount2').textContent = chars;
+        document.getElementById('lineCount').textContent  = lines;
+        document.getElementById('readTime').textContent   = rt;
+    }
+</script>
+</body>
+</html>
